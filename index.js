@@ -32,6 +32,7 @@ client.on("message", (msg) => {
 
 client.initialize();
 
+// Función para esperar respuesta del bot
 function esperarRespuesta(numero, timeout = 10000) {
   return new Promise((resolve) => {
     const inicio = Date.now();
@@ -49,12 +50,16 @@ function esperarRespuesta(numero, timeout = 10000) {
   });
 }
 
+// Endpoint principal de consulta
 app.get("/consulta", async (req, res) => {
   const dni = req.query.dni;
-  if (!dni) return res.send("❌ DNI no válido");
+  const numeroXDATA = process.env.XDATA_NUMERO;
+
+  if (!dni || !numeroXDATA) {
+    return res.send("❌ Parámetros no válidos (DNI o número XDATA faltante)");
+  }
 
   const mensaje = `/dni${dni}`;
-  const numeroXDATA = "51999999999@c.us"; // Reemplaza con el número correcto
 
   try {
     await client.sendMessage(numeroXDATA, mensaje);
@@ -66,10 +71,12 @@ app.get("/consulta", async (req, res) => {
   }
 });
 
+// Endpoint base
 app.get("/", (req, res) => {
   res.send("✅ Servidor activo - WhatsApp XDATA Consulta");
 });
 
+// Iniciar servidor
 app.listen(port, () => {
   console.log("🚀 Servidor ejecutándose en puerto " + port);
 });
