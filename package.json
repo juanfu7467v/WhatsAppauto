@@ -1,0 +1,11 @@
+{
+  "name": "whatsapp-railway-bot",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "venom-bot": "^5.0.1"
+  }
+}
