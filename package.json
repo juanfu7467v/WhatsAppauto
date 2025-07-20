@@ -1,14 +1,18 @@
 {
   "name": "whatsapp-xdata-consulta",
   "version": "1.0.0",
-  "description": "Consulta de DNI usando WhatsApp Web con el bot XDATA",
+  "description": "API para enviar mensajes con /dni a WhatsApp mediante venom-bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "^1.23.0"
+    "venom-bot": "^4.1.3"
   }
 }
+
