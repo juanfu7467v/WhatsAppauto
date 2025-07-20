@@ -1,6 +1,6 @@
 FROM node:18-slim
 
-# Instala dependencias necesarias para Chromium (venom-bot)
+# Instala dependencias necesarias para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -28,8 +28,7 @@ RUN apt-get update && apt-get install -y \
   libdrm2 \
   libatspi2.0-0 \
   libglib2.0-0 \
-  libgobject-2.0-0 \
-  --no-install-recommends
+  --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 # Crear directorio de trabajo
 WORKDIR /app
@@ -37,11 +36,11 @@ WORKDIR /app
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias
+# Instalar dependencias del proyecto
 RUN npm install
 
-# Puerto expuesto (Railway detecta este automáticamente)
+# Exponer el puerto que usará Express o similar
 EXPOSE 3000
 
-# Comando para iniciar el bot
+# Comando para ejecutar tu bot
 CMD ["node", "main.js"]
