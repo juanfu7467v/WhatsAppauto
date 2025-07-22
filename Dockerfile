@@ -1,6 +1,3 @@
-FROM node:18-slim
-
-# Instalar dependencias necesarias para Chromium y Puppeteer/Venom
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -28,19 +25,4 @@ RUN apt-get update && apt-get install -y \
   libdrm2 \
   libatspi2.0-0 \
   libglib2.0-0 \
-  --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-# Crear directorio de trabajo
-WORKDIR /app
-
-# Copiar archivos del proyecto
-COPY . .
-
-# Instalar dependencias Node.js
-RUN npm install
-
-# Exponer el puerto de Express u otro
-EXPOSE 3000
-
-# Iniciar la aplicación
-CMD ["node", "main.js"]
+  --no-install-recommends
