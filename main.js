@@ -1,37 +1,42 @@
-const qrcode = require('qrcode');
-const { Client } = require('whatsapp-web.js');
+const venom = require('venom-bot');
 const express = require('express');
+const axios = require('axios');
+
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-let qrCodeData = null;
+venom
+  .create({
+    session: 'whatsapp-session',
+    headless: true,
+    multidevice: true,
+  })
+  .then((client) => start(client))
+  .catch((e) => console.error(e));
 
-const client = new Client();
+function start(client) {
+  client.onMessage(async (message) => {
+    if (message.body && !message.isGroupMsg) {
+      const parts = message.body.trim().split(' ');
+      const command = parts[0].toLowerCase().replace('/', '');
+      const param = parts[1];
 
-client.on('qr', (qr) => {
-    // Guarda el QR para mostrarlo en la web
-    qrCodeData = qr;
-    console.log('QR recibido, escanéalo en http://localhost:' + port);
-});
+      if (!command || !param) return;
 
-client.on('ready', () => {
-    console.log('Cliente listo!');
-});
+      const url = `https://poxy-production.up.railway.app/${command}?dni=${param}&source=database`;
 
-client.initialize();
-
-app.get('/', async (req, res) => {
-    if (!qrCodeData) {
-        return res.send('Esperando QR...');
+      try {
+        const response = await axios.get(url);
+        await client.sendText(
+          message.from,
+          `✅ Resultado para /${command} ${param}:\n\n${JSON.stringify(response.data, null, 2)}`
+        );
+      } catch (err) {
+        await client.sendText(message.from, `❌ Error al consultar /${command} ${param}`);
+      }
     }
-    try {
-        const qrImage = await qrcode.toDataURL(qrCodeData);
-        res.send(`<h2>Escanea este QR con WhatsApp Web:</h2><img src="${qrImage}" />`);
-    } catch (err) {
-        res.send('Error generando el código QR');
-    }
-});
+  });
+}
 
-app.listen(port, () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
-});
+app.get('/', (req, res) => res.send('✅ Bot corriendo correctamente en Railway'));
+app.listen(PORT, () => console.log(`🚀 Servidor Express en http://localhost:${PORT}`));
