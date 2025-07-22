@@ -1,34 +1,35 @@
-const venom = require('venom');
+// main.js
+const { create, Client } = require('venom');
 
-venom
-  .create({
-    session: 'whatsapp-session',
-    multidevice: true,
-    headless: false, // Importante: desactivamos headless para ver la ventana
-    devtools: false,
-    useChrome: true,
-    debug: false,
-    logQR: true,
-    browserArgs: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--window-size=800,800' // Tamaño adecuado de la ventana para ver el QR
-    ],
-  })
+create({
+  session: 'whatsapp-session',
+  multidevice: true, // Usa true para WhatsApp Business o cuentas nuevas
+  headless: false,    // Abre el navegador visible (NO oculto)
+  useChrome: true,
+  devtools: false,
+  debug: false,
+  logQR: true,       // Muestra QR en consola también
+  browserArgs: ['--no-sandbox'],
+})
   .then((client) => start(client))
-  .catch((error) => {
-    console.error('Error al iniciar Venom:', error);
+  .catch((erro) => {
+    console.log('[ERROR]', erro);
   });
 
 function start(client) {
+  console.log('✅ Bot iniciado correctamente');
+
+  // Ejemplo de respuesta automática
   client.onMessage(async (message) => {
     if (message.body === 'hola' && message.isGroupMsg === false) {
-      await client.sendText(message.from, 'Hola, ¿cómo estás?');
+      await client.sendText(message.from, '👋 Hola, ¿en qué puedo ayudarte?');
+    }
+
+    if (message.body === 'info') {
+      await client.sendText(
+        message.from,
+        '📄 Este es un bot automático. Pronto agregaremos más funciones.'
+      );
     }
   });
 }
