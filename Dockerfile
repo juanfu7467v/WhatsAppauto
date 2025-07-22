@@ -1,3 +1,6 @@
+FROM node:20
+
+# Instala dependencias necesarias para Puppeteer y QR en navegador
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -26,3 +29,18 @@ RUN apt-get update && apt-get install -y \
   libatspi2.0-0 \
   libglib2.0-0 \
   --no-install-recommends
+
+# Crea directorio de la app
+WORKDIR /app
+
+# Copia los archivos del proyecto
+COPY . .
+
+# Instala las dependencias del proyecto
+RUN npm install
+
+# Expone el puerto
+EXPOSE 3000
+
+# Comando para iniciar la app
+CMD ["node", "index.js"]
