@@ -1,6 +1,7 @@
 const venom = require('venom-bot');
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,19 @@ venom
     session: 'whatsapp-session',
     headless: true,
     multidevice: true,
+    logQR: false, // Evita mostrar QR en consola
+    browserArgs: ['--no-sandbox'],
+    useChrome: false,
+    qrTimeout: 0,
+    statusFind: (statusSession, session) => {
+      console.log('Status Session: ', statusSession);
+    },
+    catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
+      // Guardamos el QR en imagen para escanear fácilmente
+      const base64Data = base64Qr.replace(/^data:image\/png;base64,/, '');
+      fs.writeFileSync('qr-code.png', base64Data, 'base64');
+      console.log('✅ Código QR guardado como "qr-code.png". Abre y escanea con tu WhatsApp.');
+    },
   })
   .then((client) => start(client))
   .catch((e) => console.error(e));
@@ -35,3 +49,4 @@ function start(client) {
 // Endpoint básico para Railway check
 app.get('/', (req, res) => res.send('Bot corriendo correctamente en Railway'));
 app.listen(PORT, () => console.log(`Servidor Express en http://localhost:${PORT}`));
+
