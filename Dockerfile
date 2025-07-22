@@ -1,6 +1,6 @@
 FROM node:18-slim
 
-# Instala dependencias necesarias para Chromium
+# Instalar dependencias necesarias para Chromium y Puppeteer/Venom
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -36,11 +36,11 @@ WORKDIR /app
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias del proyecto
+# Instalar dependencias Node.js
 RUN npm install
 
-# Exponer el puerto que usará Express o similar
+# Exponer el puerto de Express u otro
 EXPOSE 3000
 
-# Comando para ejecutar tu bot
+# Iniciar la aplicación
 CMD ["node", "main.js"]
