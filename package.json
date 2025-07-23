@@ -1,14 +1,12 @@
 {
-  "name": "whatsappbot",
+  "name": "wa-bot",
   "version": "1.0.0",
-  "description": "Bot que consulta datos por WhatsApp",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "whatsapp-web.js": "^1.21.1",
-    "qrcode-terminal": "^0.12.0"
+    "@whiskeysockets/baileys": "^6.6.0"
   }
 }
