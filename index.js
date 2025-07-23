@@ -1,47 +1,44 @@
-import { Boom } from '@hapi/boom';
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys';
-
 import express from 'express';
+import { Boom } from '@hapi/boom';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { default as pino } from 'pino';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
-app.get('/', (req, res) => {
-  res.send('✅ API activa y escuchando...');
-});
-
-const connectToWhatsApp = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const { version, isLatest } = await fetchLatestBaileysVersion();
+const startSock = async () => {
+  const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
 
   const sock = makeWASocket({
-    version,
-    auth: state,
     printQRInTerminal: true,
-  });
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === 'close') {
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Connection closed. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) {
-        connectToWhatsApp();
-      }
-    } else if (connection === 'open') {
-      console.log('✅ Connected to WhatsApp');
-    }
+    auth: state,
+    logger: pino({ level: 'silent' }),
   });
 
   sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error instanceof Boom)
+        ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut
+        : true;
+
+      console.log('connection closed due to', lastDisconnect?.error, ', reconnecting:', shouldReconnect);
+
+      if (shouldReconnect) startSock();
+    } else if (connection === 'open') {
+      console.log('✅ Conectado a WhatsApp con éxito');
+    }
+  });
 };
 
-connectToWhatsApp().catch(console.error);
+startSock();
+
+app.get('/', (req, res) => {
+  res.send('✅ El servidor de WhatsApp está corriendo correctamente.');
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
