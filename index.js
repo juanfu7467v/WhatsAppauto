@@ -1,59 +1,41 @@
-import express from "express";
-import { Boom } from "@hapi/boom";
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion
-} from "@whiskeysockets/baileys";
-import qrcode from "qrcode-terminal";
+import { default as makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import express from 'express';
+import { Boom } from '@hapi/boom';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth_info");
+app.get('/', (_req, res) => {
+  res.send('Servidor activo y funcionando correctamente.');
+});
 
+async function connectToWhatsApp() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth');
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     version,
+    printQRInTerminal: true,
     auth: state,
-    printQRInTerminal: true
   });
 
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === "close") {
-      const shouldReconnect =
-        (lastDisconnect?.error)?.output?.statusCode !==
-        DisconnectReason.loggedOut;
-      console.log(
-        "Conexion cerrada, ¿reconectar?",
-        shouldReconnect,
-        lastDisconnect?.error
-      );
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('Conexion cerrada. ¿Reconectar?', shouldReconnect);
       if (shouldReconnect) {
         connectToWhatsApp();
       }
-    } else if (connection === "open") {
-      console.log("✅ Conectado correctamente a WhatsApp");
+    } else if (connection === 'open') {
+      console.log('✅ Conectado a WhatsApp correctamente.');
     }
   });
 
-  sock.ev.on("creds.update", saveCreds);
+  sock.ev.on('creds.update', saveCreds);
 }
-
-connectToWhatsApp();
-
-app.get("/", (req, res) => {
-  res.send("✅ Servidor corriendo y WhatsApp activo");
-});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  connectToWhatsApp();
 });
