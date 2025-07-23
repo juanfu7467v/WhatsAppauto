@@ -1,50 +1,40 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const express = require('express');
-const qrcode = require('qrcode-terminal');
+const { default: makeWASocket, useSingleFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
+const { Boom } = require("@hapi/boom");
+const { delay } = require("@whiskeysockets/baileys");
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const fs = require("fs");
+const { fetchLatestBaileysVersion } = require("@whiskeysockets/baileys");
+const { useMultiFileAuthState } = require("@whiskeysockets/baileys");
 
-// Cliente de WhatsApp
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    args: ['--no-sandbox'],
-  },
-});
+async function startSock() {
+  const { state, saveCreds } = await useMultiFileAuthState("auth_info");
 
-// Mostrar el QR en consola de Railway
-client.on('qr', (qr) => {
-  console.log('QR generado. Escanéalo desde WhatsApp Web:');
-  qrcode.generate(qr, { small: true });
-});
+  const { version } = await fetchLatestBaileysVersion();
+  const sock = makeWASocket({
+    version,
+    printQRInTerminal: true, // ⬅⬅⬅ MUY IMPORTANTE: Esto es lo que muestra el QR
+    auth: state,
+  });
 
-// Confirmación de inicio de sesión
-client.on('ready', () => {
-  console.log('✅ WhatsApp conectado exitosamente.');
-});
+  sock.ev.on("creds.update", saveCreds);
 
-client.on('auth_failure', (msg) => {
-  console.error('❌ Falló la autenticación:', msg);
-});
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect, qr } = update;
+    if (qr) {
+      console.log("\n🔷 ESCANEA ESTE QR EN WHATSAPP WEB:\n");
+    }
 
-client.initialize();
+    if (connection === "close") {
+      const shouldReconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log("❌ Conexión cerrada. Reintentando:", shouldReconnect);
+      if (shouldReconnect) {
+        startSock();
+      }
+    } else if (connection === "open") {
+      console.log("✅ ¡Conectado a WhatsApp!");
+    }
+  });
+}
 
-// Endpoint de ejemplo para reenviar comandos al bot
-app.get('/consulta', async (req, res) => {
-  const dni = req.query.dni;
-  const receptor = '51987654321@c.us'; // Reemplaza con tu número o el del bot
-  const mensaje = `/c4 ${dni}`;
-
-  try {
-    await client.sendMessage(receptor, mensaje);
-    res.send('Comando enviado correctamente.');
-  } catch (err) {
-    console.error('Error enviando mensaje:', err);
-    res.status(500).send('Error al enviar mensaje.');
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
+startSock();
