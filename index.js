@@ -1,51 +1,35 @@
-import express from "express";
-import { createCanvas } from "canvas";
-import qrcode from "qrcode";
-import pkg from "whatsapp-web.js";
-
-const { Client, LocalAuth } = pkg;
-
+const express = require("express");
+const puppeteer = require("puppeteer"); // <- usamos puppeteer, no puppeteer-core
 const app = express();
-const port = process.env.PORT || 8080;
 
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  }
-});
+app.use(express.static("public"));
 
-let qrCodeDataURL = null;
+app.get("/", async (req, res) => {
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  });
+  const page = await browser.newPage();
+  await page.goto("https://web.whatsapp.com");
+  await page.setViewport({ width: 1080, height: 1024 });
 
-client.on("qr", async (qr) => {
-  qrCodeDataURL = await qrcode.toDataURL(qr);
-  console.log("🔗 Escanea el código QR con WhatsApp.");
-});
+  const qrElement = await page.waitForSelector("canvas", { timeout: 15000 });
+  const qrDataUrl = await qrElement.evaluate(canvas => canvas.toDataURL());
 
-client.on("ready", () => {
-  console.log("✅ Cliente conectado correctamente.");
-});
+  await browser.close();
 
-client.on("authenticated", () => {
-  console.log("🔐 Cliente autenticado.");
-});
-
-client.initialize();
-
-app.get("/", (req, res) => {
-  res.send(`
+  const html = `
     <html>
-      <head>
-        <title>WhatsApp Web</title>
-      </head>
-      <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
-        <h1>Escanea el QR para iniciar sesión</h1>
-        ${qrCodeDataURL ? `<img src="${qrCodeDataURL}" alt="Código QR">` : '<p>Esperando código QR...</p>'}
+      <body style="text-align: center;">
+        <h2>Escanea el código QR</h2>
+        <img src="${qrDataUrl}" />
       </body>
     </html>
-  `);
+  `;
+
+  res.send(html);
 });
 
-app.listen(port, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${port}`);
+app.listen(8080, () => {
+  console.log("✅ Servidor corriendo en http://localhost:8080");
 });
