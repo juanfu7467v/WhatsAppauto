@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Generador de Imagen por DNI</title>
+</head>
+<body style="text-align:center; font-family:sans-serif;">
+  <h1>Generar Imagen con Datos del DNI</h1>
+  <form onsubmit="mostrarImagen(event)">
+    <input type="text" id="dni" placeholder="Ingresa DNI" required />
+    <button type="submit">Generar Imagen</button>
+  </form>
+  <br/>
+  <img id="resultado" src="" alt="Imagen generada" style="max-width:100%;border:1px solid #ccc"/>
+  
+  <script>
+    function mostrarImagen(e) {
+      e.preventDefault();
+      const dni = document.getElementById("dni").value;
+      const img = document.getElementById("resultado");
+      img.src = `/imagen?dni=${dni}`;
+    }
+  </script>
+</body>
+</html>
