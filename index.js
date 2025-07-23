@@ -1,75 +1,45 @@
-import { Boom } from '@hapi/boom';
-import makeWASocket, {
-  useMultiFileAuthState,
-  DisconnectReason,
-  makeInMemoryStore,
-  fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys';
+import { default as makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys'
+import express from 'express'
+import pino from 'pino'
 
-import express from 'express';
-import { createServer } from 'http';
-import QRCode from 'qrcode';
+const app = express()
+const PORT = process.env.PORT || 8080
 
-const app = express();
-const server = createServer(app);
-const PORT = process.env.PORT || 8080;
+const connectToWhatsApp = async () => {
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info')
 
-const store = makeInMemoryStore({});
-store.readFromFile('./session_store.json');
-setInterval(() => {
-  store.writeToFile('./session_store.json');
-}, 10_000);
-
-async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-
-  const { version } = await fetchLatestBaileysVersion();
+  const { version } = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
     version,
-    printQRInTerminal: false,
-    auth: state,
-    browser: ['Railway Bot', 'Chrome', '4.0'],
-    defaultQueryTimeoutMs: undefined,
-  });
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: true,
+    auth: state
+  })
 
-  store.bind(sock.ev);
+  sock.ev.on('creds.update', saveCreds)
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      console.log('🔷 Escanea este QR:');
-      QRCode.toString(qr, { type: 'terminal' }, (err, url) => {
-        if (err) return console.error('Error generando QR:', err);
-        console.log(url);
-      });
-    }
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update
 
     if (connection === 'close') {
-      const shouldReconnect =
-        (lastDisconnect?.error?.output?.statusCode || 0) !== DisconnectReason.loggedOut;
-
-      console.log('⚠️ Conexión cerrada. Reintentando:', shouldReconnect);
-      if (shouldReconnect) {
-        connectToWhatsApp();
-      }
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+      console.log('Connection closed. Reconnecting:', shouldReconnect)
+      if (shouldReconnect) connectToWhatsApp()
     }
 
     if (connection === 'open') {
-      console.log('✅ Conectado a WhatsApp');
+      console.log('✅ Conectado a WhatsApp')
     }
-  });
-
-  sock.ev.on('creds.update', saveCreds);
+  })
 }
 
-connectToWhatsApp();
+connectToWhatsApp()
 
 app.get('/', (req, res) => {
-  res.send('✅ Bot de WhatsApp corriendo en Railway.');
-});
+  res.send('🤖 Bot de WhatsApp activo y funcionando correctamente.')
+})
 
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`)
+})
