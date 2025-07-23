@@ -1,79 +1,59 @@
-import makeWASocket, {
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason,
-  makeInMemoryStore,
-} from "@whiskeysockets/baileys";
 import express from "express";
 import { Boom } from "@hapi/boom";
-import P from "pino";
-import fs from "fs";
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion
+} from "@whiskeysockets/baileys";
+import qrcode from "qrcode-terminal";
 
 const app = express();
-const port = process.env.PORT || 8080;
-
-const store = makeInMemoryStore({ logger: P().child({ level: "silent", stream: "store" }) });
+const PORT = process.env.PORT || 8080;
 
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys");
+  const { state, saveCreds } = await useMultiFileAuthState("auth_info");
+
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     version,
-    printQRInTerminal: true,
     auth: state,
-    logger: P({ level: "silent" }),
+    printQRInTerminal: true
   });
 
-  store.bind(sock.ev);
-
-  sock.ev.on("creds.update", saveCreds);
-
   sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      qrcode.generate(qr, { small: true });
+    }
+
     if (connection === "close") {
-      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      if (reason === DisconnectReason.loggedOut) {
-        console.log("❌ Desconectado. Escanea el QR nuevamente.");
-        connectToWhatsApp();
-      } else {
-        console.log("🔁 Reconectando...");
+      const shouldReconnect =
+        (lastDisconnect?.error)?.output?.statusCode !==
+        DisconnectReason.loggedOut;
+      console.log(
+        "Conexion cerrada, ¿reconectar?",
+        shouldReconnect,
+        lastDisconnect?.error
+      );
+      if (shouldReconnect) {
         connectToWhatsApp();
       }
     } else if (connection === "open") {
-      console.log("✅ Conectado a WhatsApp Web");
+      console.log("✅ Conectado correctamente a WhatsApp");
     }
   });
 
-  return sock;
+  sock.ev.on("creds.update", saveCreds);
 }
 
-let sockInstance;
+connectToWhatsApp();
 
-connectToWhatsApp().then((sock) => {
-  sockInstance = sock;
+app.get("/", (req, res) => {
+  res.send("✅ Servidor corriendo y WhatsApp activo");
 });
 
-app.get("/consulta", async (req, res) => {
-  const dni = req.query.dni;
-  if (!dni || !sockInstance) {
-    return res.send("Error: DNI no válido o WhatsApp no conectado.");
-  }
-
-  try {
-    const mensaje = `/dni${dni}`;
-    const xdataBot = "51999999999@s.whatsapp.net"; // <-- Reemplaza por el número real del bot
-
-    await sockInstance.sendMessage(xdataBot, { text: mensaje });
-
-    // Aquí puedes esperar la respuesta o devolver algo temporal
-    return res.send(`Mensaje enviado a XDATA con DNI: ${dni}`);
-  } catch (err) {
-    console.error("Error al enviar mensaje:", err);
-    return res.send("Error al enviar mensaje.");
-  }
-});
-
-app.listen(port, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
