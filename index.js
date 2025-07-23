@@ -1,41 +1,64 @@
-const express = require("express");
-const axios = require("axios");
-const path = require("path");
-const { createCanvas, registerFont } = require("canvas");
+import express from 'express';
+import { Client, LocalAuth } from 'whatsapp-web.js';
+import qrcode from 'qrcode-terminal';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(express.static("public"));
+let xdataResponse = null;
+let waitingForDNI = null;
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  }
 });
 
-app.get("/imagen", async (req, res) => {
+client.on('qr', (qr) => {
+  console.log('Escanea el siguiente código QR con tu WhatsApp:');
+  qrcode.generate(qr, { small: true });
+});
+
+client.on('ready', () => {
+  console.log('✅ WhatsApp Web listo.');
+});
+
+client.on('message', (msg) => {
+  if (waitingForDNI && msg.from === '521XXXXXXXXXX@c.us') { // Reemplaza con el número de XDATA
+    xdataResponse = msg.body;
+    waitingForDNI = null;
+  }
+});
+
+client.initialize();
+
+app.get('/consulta', async (req, res) => {
   const dni = req.query.dni;
-  const url = `https://poxy-production.up.railway.app/reniec?dni=${dni}&source=database`;
+  if (!dni) return res.status(400).send('Falta el DNI');
 
-  try {
-    const response = await axios.get(url);
-    const { nombre, apellidoPaterno, apellidoMaterno } = response.data;
+  const numeroXdata = '521XXXXXXXXXX@c.us'; // Reemplaza con el número correcto
+  const mensaje = `/dni${dni}`;
 
-    const canvas = createCanvas(600, 200);
-    const ctx = canvas.getContext("2d");
+  xdataResponse = null;
+  waitingForDNI = dni;
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await client.sendMessage(numeroXdata, mensaje);
 
-    ctx.fillStyle = "#000000";
-    ctx.font = "bold 28px Arial";
-    ctx.fillText(`DNI: ${dni}`, 50, 70);
-    ctx.fillText(`Nombre: ${nombre}`, 50, 110);
-    ctx.fillText(`Apellidos: ${apellidoPaterno} ${apellidoMaterno}`, 50, 150);
+  // Espera máximo 10 segundos por respuesta
+  const maxTime = 10000;
+  const interval = 500;
+  let waited = 0;
 
-    res.setHeader("Content-Type", "image/png");
-    canvas.pngStream().pipe(res);
-  } catch (error) {
-    res.status(500).send("Error generando imagen");
+  while (!xdataResponse && waited < maxTime) {
+    await new Promise(r => setTimeout(r, interval));
+    waited += interval;
+  }
+
+  if (xdataResponse) {
+    res.send(xdataResponse);
+  } else {
+    res.status(504).send('No se recibió respuesta de XDATA a tiempo.');
   }
 });
 
