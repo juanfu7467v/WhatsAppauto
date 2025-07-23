@@ -1,14 +1,13 @@
 {
-  "name": "mi-servidor",
+  "name": "imagen-server",
   "version": "1.0.0",
-  "description": "Servidor básico con Node.js y Docker",
+  "description": "Servidor que genera imágenes con canvas",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "author": "Tu Nombre",
-  "license": "MIT",
   "dependencies": {
+    "canvas": "^2.11.2",
     "express": "^4.18.4"
   }
 }
