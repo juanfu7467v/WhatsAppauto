@@ -1,20 +1,18 @@
-# Node modules
-node_modules/
+FROM node:18
 
-# Logs
-logs/
-*.log
+# Establece el directorio de trabajo
+WORKDIR /app
 
-# Env files
-.env
+# Copia los archivos necesarios
+COPY package*.json ./
 
-# WhatsApp session files
-auth_info*
-session.json
-session/
+RUN npm install
 
-# Railway deploy cache
-.cache/
+# Copia el resto del código
+COPY . .
 
-# Otros
-.DS_Store
+# Expone el puerto (aunque no lo usa directamente)
+EXPOSE 3000
+
+# Comando para iniciar el bot
+CMD ["npm", "start"]
