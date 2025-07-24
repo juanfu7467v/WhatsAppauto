@@ -1,39 +1,41 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
-import pino from "pino";
+import { default as makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import express from 'express';
+import { Boom } from '@hapi/boom';
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.get('/', (_req, res) => {
+  res.send('Servidor activo y funcionando correctamente.');
+});
 
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth");
+  const { state, saveCreds } = await useMultiFileAuthState('auth');
+  const { version } = await fetchLatestBaileysVersion();
+
   const sock = makeWASocket({
-    auth: state,
+    version,
     printQRInTerminal: true,
-    logger: pino({ level: "silent" })
+    auth: state,
   });
 
-  sock.ev.on("creds.update", saveCreds);
-
-  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
-    if (connection === "close") {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log("connection closed, reconnecting...", shouldReconnect);
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('Conexion cerrada. ¿Reconectar?', shouldReconnect);
       if (shouldReconnect) {
         connectToWhatsApp();
       }
-    } else if (connection === "open") {
-      console.log("✅ Conectado a WhatsApp!");
+    } else if (connection === 'open') {
+      console.log('✅ Conectado a WhatsApp correctamente.');
     }
   });
 
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message) return;
-
-    const from = msg.key.remoteJid;
-    const body = msg.message.conversation || msg.message.extendedTextMessage?.text;
-
-    if (body === "!ping") {
-      await sock.sendMessage(from, { text: "🏓 Pong!" });
-    }
-  });
+  sock.ev.on('creds.update', saveCreds);
 }
 
-connectToWhatsApp();
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  connectToWhatsApp();
+});
